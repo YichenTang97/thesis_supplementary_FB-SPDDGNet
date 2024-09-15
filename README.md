@@ -34,7 +34,66 @@ Table 1 summarises the cross-participant classification accuracies and the stand
 | Tensor-CSPNet + CCSA   | 41.23 ± 4.51           | 24.79 ± 3.87           |
 | **FB-SPDDGNet (proposed)** | **49.47 ± 9.00**      | **26.74 ± 4.63**       |
 
+<br>
 
+# Sample usage of package
+
+This repository also implemented an scikit-learn API compatible class for classifying EEG signals using FB-SPDDGNet. The EEG data need to be band-pass filtered using a filter bank before using the classifier. Here is a sample code snippet:
+
+```python
+from omegaconf import OmegaConf
+from fbspddgnet import FB_SPDDGNet_Classifier
+
+# Define the model arguments
+args_s = f"""
+n_classes: 5
+n_ch: 64
+norm_momentum: 0.1
+n_bands: 6
+n_segments: 4
+overlap: 0
+conv_ch_1: 48
+conv_ch_2: 32
+conv_t: 16
+bi_ho_1: 6
+bi_no_1: 16
+bi_ho_2: 6
+bi_no_2: 8
+"""
+args = OmegaConf.create(args_s)
+
+# Define the source and target domains
+source_domains = ['P1', 'P2', 'P3']
+target_domains = ['P4', 'P5']
+
+# Load the data
+# X is the EEG data after been band-pass filtered using a filter bank, y is the class labels, 
+# and d is the domain labels (must be from source_domains and target_domains)
+# X has shape (n_samples, n_frequency_bands, n_channels, n_timestamps), y has shape (n_samples,), d has shape (n_samples,)
+X, y, d = ... # training data, 
+X_finetune, y_finetune, d_finetune = ... # fine-tuning data
+X_test, y_test, d_test = ... # test data
+
+# Create the classifier
+clf = FB_SPDDGNet_Classifier(args, source_domains, target_domains, rotate=True, bias=True, 
+                             parallel=True, gpu=False, seed=42, save_folder='saved_states', save_name='FB-SPDDGNet', verbose=1)
+
+# Fit the classifier on source participants
+clf.fit(X, y, d, dataset=None, val_ratio=0.2, epochs=100, batch_size=700, 
+        lr=0.01, weight_decay=1e-4, loss_lambdas=[1.0, 0.1, 0.1], checkpoints=[])
+
+# Fine-tune on target participants
+clf.fine_tune(X_finetune, y_finetune, d_finetune, dataset=None, n_karcher_steps=40, 
+              epochs=100, lr=0.001, weight_decay=1e-4, loss_lambdas=[1.0, 0.1], 
+              checkpoints=[], train_checkpoint=None) # fine-tune is required for target domain adaptation
+
+# Make predictions on target participants
+preds = clf.predict(X_test, d_test, dataset=None, batch_size=100, finetune_checkpoint=None)
+probas = clf.predict_proba(X_test, d_test, dataset=None, batch_size=100, finetune_checkpoint=None)
+
+acc = (preds == y_test).mean()
+print(f'Accuracy: {acc}')
+```
 
 # References
 [1] Zhiwu Huang and Luc Van Gool. A Riemannian network for SPD matrix learning. In Proceedings of the AAAI conference on artificial intelligence, volume 31, 2017. <br>

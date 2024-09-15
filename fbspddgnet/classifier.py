@@ -34,8 +34,8 @@ class FB_SPDDGNet_Classifier(ClassifierMixin, BaseEstimator):
     - net_ (FB_SPDDGBN): FB-SPDDGBN model instance.
 
     Methods:
-    - fit(X, y, d, dataset=None, val_ratio=0.2, epochs=100, batch_size=700, lr=0.01, weight_decay=1e-4, loss_lambdas=[0., 0.1, 0.1], checkpoints=[]): Fits the model to the training data.
-    - fine_tune(X, y, d, dataset=None, n_karcher_steps=40, epochs=100, lr=0.001, weight_decay=1e-4, loss_lambdas=[0., 0.1], checkpoints=[], train_checkpoint=None): Fine-tunes the model.
+    - fit(X, y, d, dataset=None, val_ratio=0.2, epochs=100, batch_size=700, lr=0.01, weight_decay=1e-4, loss_lambdas=[1.0, 0.1, 0.1], checkpoints=[]): Fits the model to the training data.
+    - fine_tune(X, y, d, dataset=None, n_karcher_steps=40, epochs=100, lr=0.001, weight_decay=1e-4, loss_lambdas=[1.0, 0.1], checkpoints=[], train_checkpoint=None): Fine-tunes the model.
     - predict_proba(X, d, dataset=None, batch_size=100, finetune_checkpoint=None): Predicts class probabilities for the input samples.
     - predict(X, d, dataset=None, batch_size=100, finetune_checkpoint=None): Predicts class labels for the input samples.
 
@@ -44,7 +44,6 @@ class FB_SPDDGNet_Classifier(ClassifierMixin, BaseEstimator):
 
     Sample usage:
     ```python
-    import os.path as op
     from omegaconf import OmegaConf
     from fbspddgnet import FB_SPDDGNet_Classifier
 
@@ -66,28 +65,32 @@ class FB_SPDDGNet_Classifier(ClassifierMixin, BaseEstimator):
     """
     args = OmegaConf.create(args_s)
 
-    # Or load the model arguments from the fb_spddgnet.yaml file
-    proj_dir = ... # path to the project directory where fbspddgnet is located
-    args = OmegaConf.load(op.join(proj_dir, 'fbspddgnet', 'confs', 'fb_spddgnet.yaml'))
-
-    
     # Define the source and target domains
     source_domains = ['P1', 'P2', 'P3']
     target_domains = ['P4', 'P5']
 
     # Load the data
-    # X is the EEG data after been band-pass filtered using a filter bank, y is the class labels, and d is the domain labels (must be from source_domains and target_domains)
+    # X is the EEG data after been band-pass filtered using a filter bank, y is the class labels, 
+    # and d is the domain labels (must be from source_domains and target_domains)
     # X has shape (n_samples, n_frequency_bands, n_channels, n_timestamps), y has shape (n_samples,), d has shape (n_samples,)
     X, y, d = ... # training data, 
     X_finetune, y_finetune, d_finetune = ... # fine-tuning data
     X_test, y_test, d_test = ... # test data
 
     # Create the classifier
-    clf = FB_SPDDGNet_Classifier(args, source_domains, target_domains, rotate=True, bias=True, parallel=True, gpu=False, seed=42, save_folder='saved_states', save_name='FB-SPDDGNet', verbose=1)
+    clf = FB_SPDDGNet_Classifier(args, source_domains, target_domains, rotate=True, bias=True, 
+                                parallel=True, gpu=False, seed=42, save_folder='saved_states', save_name='FB-SPDDGNet', verbose=1)
 
-    # Fit the classifier
-    clf.fit(X, y, d, X_finetune, y_finetune, d_finetune, dataset=None, val_ratio=0.2, epochs=100, batch_size=700, lr=0.01, weight_decay=1e-4, loss_lambdas=[0., 0.1, 0.1], checkpoints=[])
-    clf.fine_tune(X_finetune, y_finetune, d_finetune, dataset=None, n_karcher_steps=40, epochs=100, lr=0.001, weight_decay=1e-4, loss_lambdas=[0., 0.1], checkpoints=[], train_checkpoint=None) # fine-tune is required for target domain adaptation
+    # Fit the classifier on source participants
+    clf.fit(X, y, d, dataset=None, val_ratio=0.2, epochs=100, batch_size=700, 
+            lr=0.01, weight_decay=1e-4, loss_lambdas=[1.0, 0.1, 0.1], checkpoints=[])
+
+    # Fine-tune on target participants
+    clf.fine_tune(X_finetune, y_finetune, d_finetune, dataset=None, n_karcher_steps=40, 
+                epochs=100, lr=0.001, weight_decay=1e-4, loss_lambdas=[1.0, 0.1], 
+                checkpoints=[], train_checkpoint=None) # fine-tune is required for target domain adaptation
+
+    # Make predictions on target participants
     preds = clf.predict(X_test, d_test, dataset=None, batch_size=100, finetune_checkpoint=None)
     probas = clf.predict_proba(X_test, d_test, dataset=None, batch_size=100, finetune_checkpoint=None)
 
