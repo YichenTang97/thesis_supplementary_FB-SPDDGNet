@@ -66,8 +66,8 @@ class FB_SPDDGNet_Classifier(ClassifierMixin, BaseEstimator):
     args = OmegaConf.create(args_s)
 
     # Define the source and target domains
-    source_domains = ['P1', 'P2', 'P3']
-    target_domains = ['P4', 'P5']
+    source_domains = [d+1 for d in range(12)] # participants 'P1' to 'P12'
+    target_domains = [13, 14] # Participants 'P13' and 'P14'
 
     # Load the data
     # X is the EEG data after been band-pass filtered using a filter bank, y is the class labels, 
