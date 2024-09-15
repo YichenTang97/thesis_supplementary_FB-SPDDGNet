@@ -1,5 +1,4 @@
 import torch
-import scipy
 import itertools
 import torch.nn as nn
 

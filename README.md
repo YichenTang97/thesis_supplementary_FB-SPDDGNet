@@ -36,6 +36,41 @@ Table 1 summarises the cross-participant classification accuracies and the stand
 
 <br>
 
+# Requirements
+
+The evaluated were completed on python 3.11.8 with the following libraries and versions:
+
+```
+torch==2.2.2+cu118
+numpy==1.25.2
+scikit-learn==1.4.2
+pyriemann==0.6
+einops==0.7.0
+omegaconf==2.3.0
+tqdm==4.66.2
+```
+
+The `fbspddgnet` library can be dynamically loaded using `importlib`:
+
+```python
+import sys
+import importlib.util
+import os.path as op
+
+def import_local(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+
+proj_dir = ... # the project directory where the "fbspddgnet" folder is located
+import_local("fbspddgnet", op.join(proj_dir, "fbspddgnet", "__init__.py"))
+
+from fbspddgnet.models import FB_SPDDGNet
+
+net = FB_SPDDGBN(...)
+```
+
 # Sample usage of package
 
 This repository also implemented an scikit-learn API compatible class for classifying EEG signals using FB-SPDDGNet. The EEG data need to be band-pass filtered using a filter bank before using the classifier. Here is a sample code snippet:
@@ -94,6 +129,8 @@ probas = clf.predict_proba(X_test, d_test, dataset=None, batch_size=100, finetun
 acc = (preds == y_test).mean()
 print(f'Accuracy: {acc}')
 ```
+
+
 
 # References
 [1] Zhiwu Huang and Luc Van Gool. A Riemannian network for SPD matrix learning. In Proceedings of the AAAI conference on artificial intelligence, volume 31, 2017. <br>
