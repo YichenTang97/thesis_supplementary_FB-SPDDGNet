@@ -1,0 +1,9 @@
+n_classes: 5
+n_chs: 64
+n_t: 1024
+kernLength: 64
+F1: 8
+D: 2
+F2: 16
+dropoutRate: 0.25
+dropoutType: Dropout

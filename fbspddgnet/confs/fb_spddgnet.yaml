@@ -1,0 +1,13 @@
+n_classes: 5
+n_ch: 64
+norm_momentum: 0.1
+n_bands: 6
+n_segments: 4
+overlap: 0
+conv_ch_1: 48
+conv_ch_2: 32
+conv_t: 16
+bi_ho_1: 6
+bi_no_1: 16
+bi_ho_2: 6
+bi_no_2: 8

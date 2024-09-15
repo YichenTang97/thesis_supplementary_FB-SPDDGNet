@@ -1,0 +1,9 @@
+n_classes: 5
+n_bands: 6
+n_segments: 4
+dims:
+- 64
+- 32
+- 32
+- 20
+tcn_channels: 48
