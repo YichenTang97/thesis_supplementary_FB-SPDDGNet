@@ -123,9 +123,10 @@ class FB_SPDDGNet_Classifier(ClassifierMixin, BaseEstimator):
         d = torch.as_tensor(d, dtype=torch.long)
         return Data.TensorDataset(X, y, d)
 
-    def fit(self, X, y, d, dataset=None, val_ratio=0.2, epochs=100, batch_size=700, lr=0.01, weight_decay=1e-4, loss_lambdas=[1.0, 0.1, 0.1], checkpoints=[]):
+    def fit(self, X, y, d, dataset=None, val_ratio=0.2, epochs=100, batch_size=700, lr=0.01, weight_decay=1e-4, loss_lambdas=[1.0, 0.1, 0.1], 
+            checkpoints=[], use_best=True):
         """
-        Fits the classifier to the given data. The RADAM optimizer [1] is used for training. The best state is saved based on the validation loss.
+        Fits the classifier to the given data. The RADAM optimizer [1] is used for training. In default, the best state is saved based on the validation loss.
 
         Args:
             X (array-like): The input features. Ignored if dataset is provided.
@@ -139,6 +140,7 @@ class FB_SPDDGNet_Classifier(ClassifierMixin, BaseEstimator):
             weight_decay (float, optional): The weight decay for training. Default is 1e-4.
             loss_lambdas (list, optional): The list of loss lambdas (see eval.train.trainNetwork and FB-SPDDGNet). Default is [1.0, 0.1, 0.1].
             checkpoints (list, optional): The list of checkpoints to save during training. Default is [].
+            use_best (bool, optional): Whether to use the best state of the model based on the validation loss or the last training state. Default is True.
 
         Returns:
             self: The fitted classifier object.
@@ -149,19 +151,23 @@ class FB_SPDDGNet_Classifier(ClassifierMixin, BaseEstimator):
         if dataset is None:
             dataset = self._to_dataset(X, y, d)
 
-        if self.verbose:
-            print(f'Splitting dataset into {100*(1-val_ratio)}% training and {100*val_ratio}% validation sets')
-        val_size = int(val_ratio * len(dataset))
-        train_loader, val_loader = splitDataset(dataset, val_size=val_size, seed=self.seed)
-        train_loader = toDataloader(train_loader, batch_size, shuffle=True, gpu=self.gpu)
-        val_loader = toDataloader(val_loader, val_size, shuffle=False, gpu=self.gpu)
+        if val_ratio == 0.0:
+            train_loader = toDataloader(dataset, batch_size, shuffle=True, gpu=self.gpu)
+            val_loader = None
+        else:
+            if self.verbose:
+                print(f'Splitting dataset into {100*(1-val_ratio)}% training and {100*val_ratio}% validation sets')
+            val_size = int(val_ratio * len(dataset))
+            train_loader, val_loader = splitDataset(dataset, val_size=val_size, seed=self.seed)
+            train_loader = toDataloader(train_loader, batch_size, shuffle=True, gpu=self.gpu)
+            val_loader = toDataloader(val_loader, val_size, shuffle=False, gpu=self.gpu)
         
         if self.gpu:
             self.net_ = self.net_.cuda()
         
         self.net_ = trainNetwork(self.net_, train_loader, val_loader, iterations=epochs, lr=lr, wd=weight_decay, 
                                  loss_lambdas=loss_lambdas, gpu=self.gpu, folder=self.save_folder, name=self.save_name, 
-                                 checkpoints=checkpoints, verbose=self.verbose)
+                                 checkpoints=checkpoints, return_best=use_best, verbose=self.verbose)
         self.net_.eval()
 
         return self

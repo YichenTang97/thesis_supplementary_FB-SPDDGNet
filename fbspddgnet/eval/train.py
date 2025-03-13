@@ -5,14 +5,15 @@ from tqdm import tqdm
 
 from ..models import *
 
-def trainNetwork(net, trainloader, valloader, iterations=100, lr=0.01, wd=0.0001, loss_lambdas=[1.0, 0.1, 0.1], gpu=False, folder='results', name='model', checkpoints=[], verbose=False):
+def trainNetwork(net, trainloader, valloader, iterations=100, lr=0.01, wd=0.0001, loss_lambdas=[1.0, 0.1, 0.1], 
+                 gpu=False, folder='results', name='model', return_best=True, checkpoints=[], verbose=False):
     """
     Trains the neural network. The training log is saved. The best model based on validation loss is saved as well as checkpoints at specified iterations.
 
     Args:
         net (torch.nn.Module): The neural network model to train.
         trainloader (torch.utils.data.DataLoader): The data loader for the training dataset. It should contain batches of data, labels and domain labels.
-        valloader (torch.utils.data.DataLoader): The data loader for the validation dataset. It should contain batches of data, labels and domain labels.
+        valloader (torch.utils.data.DataLoader): The data loader for the validation dataset. It should contain batches of data, labels and domain labels. If not provided, validation will not be performed.
         iterations (int, optional): The number of training iterations. Defaults to 100.
         lr (float, optional): The learning rate for the optimizer. Defaults to 0.01.
         wd (float, optional): The weight decay for the optimizer. Defaults to 0.0001.
@@ -20,6 +21,7 @@ def trainNetwork(net, trainloader, valloader, iterations=100, lr=0.01, wd=0.0001
         gpu (bool, optional): Specifies whether to use GPU for training. Defaults to False.
         folder (str, optional): The folder to save the training results. Defaults to 'results' -- to be customised.
         name (str, optional): The name for the saved model. Defaults to 'model' -- to be customised.
+        return_best (bool, optional): Specifies whether to return the best model based on validation loss or the model in the final iteration. Defaults to True.
         checkpoints (list, optional): The iterations at which to save checkpoints during training. Defaults to [].
         verbose (bool, optional): Specifies whether to print training progress. Defaults to False.
 
@@ -74,7 +76,11 @@ def trainNetwork(net, trainloader, valloader, iterations=100, lr=0.01, wd=0.0001
                 optimizer.step()
             net.eval()
 
-            val_acc, val_loss = testNetwork(net, valloader, gpu)
+            if valloader is None:
+                val_acc = 0
+                val_loss = float('inf')
+            else:
+                val_acc, val_loss = testNetwork(net, valloader, gpu)
             
             log_str = f'\nIteration{ite+1}=====\n' \
                 + f'train_loss:{loss.item():.4f} \t val_loss:{val_loss:.4f}\n' \
@@ -84,7 +90,7 @@ def trainNetwork(net, trainloader, valloader, iterations=100, lr=0.01, wd=0.0001
                 print(log_str, end='')
             
             # Save best model so far based on validation loss
-            if val_loss <= best_val_loss:
+            if val_loss <= best_val_loss and valloader is not None:
                 best_val_loss = val_loss
                 f.write(f'Best model so far at iteration {ite+1}...\n')
                 if verbose: print(f'Best model so far at iteration {ite+1}...')
@@ -106,7 +112,14 @@ def trainNetwork(net, trainloader, valloader, iterations=100, lr=0.01, wd=0.0001
         torch.save(net, f'{fname}-final_state.pth')
         torch.save(optimizer, f'{fname}-optimizer_iter{iterations}.pth')
         
-    return net
+    if valloader is None:
+        torch.save(net, f'{fname}-best_state.pth')
+
+    if return_best:
+        best = torch.load(f'{fname}-best_state.pth')
+        return best
+    else:
+        return net
 
 
 def fineTuneNetwork(net, calibloader, calib_iter=100, lr=0.001, wd=0.0001, checkpoints=[], loss_lambdas=[1.0, 0.1], gpu=False, folder='results', name='model', verbose=False, **kwargs):
